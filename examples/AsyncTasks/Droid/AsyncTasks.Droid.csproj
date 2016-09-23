@@ -87,6 +87,10 @@
       <Project>{FD0430E9-A30C-498C-B76B-7A925A00232B}</Project>
       <Name>AsyncTasks</Name>
     </ProjectReference>
+    <ProjectReference Include="..\..\..\Realm.XamarinAndroid\Realm.XamarinAndroid.csproj">
+      <Project>{2379D669-4F4B-4FF6-AF8A-49FEA981EFC3}</Project>
+      <Name>Realm.XamarinAndroid</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="MainActivity.cs" />

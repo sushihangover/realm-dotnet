@@ -108,6 +108,10 @@
       <Project>{FD0430E9-A30C-498C-B76B-7A925A00232B}</Project>
       <Name>AsyncTasks</Name>
     </ProjectReference>
+    <ProjectReference Include="..\..\..\Realm.XamarinIOS\Realm.XamarinIOS.csproj">
+      <Project>{A55BD773-5A29-4B2A-9DB7-1AB1DD38B537}</Project>
+      <Name>Realm.XamarinIOS</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <ImageAsset Include="Assets.xcassets\AppIcon.appiconset\Contents.json" />
