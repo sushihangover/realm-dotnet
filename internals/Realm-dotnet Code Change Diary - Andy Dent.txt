@@ -2753,3 +2753,22 @@ ModuleWeaver.cs
 - _preserveAttributeConstructorWithType added
 - WeaveType add _preserveAttributeConstructorWithType to constructor
 - WeaveProperty - add _preserveAttribute to each woven property
+
+
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+#661 CopyFrom and CopyToOrUpdate
+
+StandAloneObjectTests.cs
+
+
+Realm.cs
+- INVALID_COLUMN_INDEX added
+- CreateRealmObjectMetadata - use INVALID_COLUMN_INDEX
+- Manage - pass the object into _CopyDataFromBackingFieldsToRow
+
+RealmObject.cs
+- added HasPrimaryKey
+- _CopyDataFromBackingFieldsToRow take param instead of using this for RHS
+
+RealmNeedPrimaryKeyValueException.cs
+- added

@@ -59,6 +59,7 @@ namespace IntegrationTests
         
         // Re-mapped property
         [MapTo("Email")]
+        [PrimaryKey]
         private string Email_ { get; set; }
 
         // Wrapped version of previous property

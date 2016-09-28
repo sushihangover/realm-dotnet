@@ -34,6 +34,7 @@ using ObjCRuntime;
 
 namespace Realms
 {
+
     /// <summary>
     /// A Realm instance (also referred to as a realm) represents a Realm database.
     /// </summary>
@@ -42,6 +43,8 @@ namespace Realms
     /// </remarks>
     public class Realm : IDisposable
     {
+        internal const int INVALID_COLUMN_INDEX = -1;
+
         #region static
 
         // shared string buffer for getter because can only be getting on this one thread per Realm
@@ -189,7 +192,7 @@ namespace Realms
             }
             // build up column index in a loop so can spot and cache primary key index on the way
             var initColumnMap = new Dictionary<string, IntPtr>();
-            int initPrimaryKeyIndex = -1;
+            int initPrimaryKeyIndex = INVALID_COLUMN_INDEX;
             foreach(var prop in schema)
             {
                 var colIndex = NativeTable.GetColumnIndex(table, prop.Name);
@@ -519,8 +522,46 @@ namespace Realms
             var rowHandle = CreateRowHandle(rowPtr, SharedRealmHandle);
 
             obj._Manage(this, rowHandle, metadata);
+            obj._CopyDataFromBackingFieldsToRow(obj);
+        }
+
+
+
+        /// <summary>
+        /// This realm will copy a standalone object or object from another realm to a new managed object or update an existing one, relying on the PrimaryKey.
+        /// </summary>
+        /// <typeparam name="T">The Type T must not only be a RealmObject but also have been processed by the Fody weaver, so it has persistent properties.</typeparam>
+        /// <param name="obj">Must be a standalone object, null not allowed and cannot be managed.</param>
+        /// <returns>The new or updated managed object.</returns>
+        /// <exception cref="RealmOutsideTransactionException">If you invoke this when there is no write Transaction active on the realm.</exception>
+        /// <exception cref="RealmObjectAlreadyManagedByRealmException">Thrown if you pass in a managed object.</exception>
+        /// <exception cref="RealmNeedPrimaryKeyValueException">Thrown if try to copy an object class which has no PrimaryKey declared.</exception>
+        public T CopyToRealmOrUpdate<T>(T obj) where T : RealmObject
+        {
+            if (obj == null)
+                throw new ArgumentNullException(nameof(obj));
+
+            if (obj.IsManaged && obj.Realm.SharedRealmHandle == this.SharedRealmHandle)
+                throw new RealmObjectAlreadyManagedByRealmException("The object is already managed by this realm, you can't copy it to itself.");
+
+            if (!IsInTransaction)
+                throw new RealmOutsideTransactionException("Cannot start managing a Realm object outside write transactions");
+
+            if (!obj.HasPrimaryKey)
+                throw new RealmNeedPrimaryKeyValueException("CopyToRealmOrUpdate can only be used with objects that have a PrimaryKey");
+            
+
+            var metadata = Metadata[typeof(T).Name];
+            var tableHandle = metadata.Table;
+        RealmObject ret = metadata.Helper.CreateInstance();
+
+            var rowPtr = NativeTable.AddEmptyRow(tableHandle);
+            var rowHandle = CreateRowHandle(rowPtr, SharedRealmHandle);
+
+            obj._Manage(this, rowHandle, metadata);
             obj._CopyDataFromBackingFieldsToRow();
         }
+
 
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal static ResultsHandle CreateResultsHandle(IntPtr resultsPtr)

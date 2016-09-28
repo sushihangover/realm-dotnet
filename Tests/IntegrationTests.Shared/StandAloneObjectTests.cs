@@ -54,13 +54,18 @@ namespace IntegrationTests.Shared
             Assert.AreEqual(name, _person.FirstName);
         }
 
-        [Test]
-        public void AddToRealm()
+        void SetStandalonePerson()
         {
             _person.FirstName = "Arthur";
             _person.LastName = "Dent";
             _person.IsInteresting = true;
+        }
 
+
+        [Test]
+        public void AddToRealm()
+        {
+            SetStandalonePerson()
             using (var realm = Realm.GetInstance())
             {
                 using (var transaction = realm.BeginWrite())
@@ -84,6 +89,20 @@ namespace IntegrationTests.Shared
             var otherPerson = new Person();
 
             Assert.DoesNotThrow(() => _person.Equals(otherPerson));
+        }
+
+        [Test]
+        public void CopyToRealmSave()
+        {
+            SetStandalonePerson();
+            using (var realm = Realm.GetInstance())
+            {
+                realm.Write( () => {
+                    var newlyManaged = realm.CopyToRealmOrUpdate(_person);    
+                    Assert.That(newlyManaged.IsManaged);
+                    Assert.IsFalse(_person.IsManaged);
+                });
+            }
         }
     }
 }

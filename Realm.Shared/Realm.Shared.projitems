@@ -76,6 +76,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Migration.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)exceptions\ManagedExceptionDuringMigrationException.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)handles\UnownedRealmHandle.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)exceptions\RealmNeedPrimaryKeyValueException.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="$(MSBuildThisFileDirectory)weaving\" />

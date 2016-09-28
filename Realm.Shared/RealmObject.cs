@@ -56,6 +56,11 @@ namespace Realms
         public bool IsValid => _rowHandle?.IsAttached != false;
 
         /// <summary>
+        /// Returns true if the object has a column with the PimaryKey attribute.
+        /// </summary>
+        public bool HasPrimaryKey => _metadata.PrimaryKeyColumnIndex != Realm.INVALID_COLUMN_INDEX;
+
+        /// <summary>
         /// The <see cref="Realm"/> instance this object belongs to, or <code>null</code> if it is unmanaged.
         /// </summary>
         public Realm Realm => _realm;
@@ -80,12 +85,12 @@ namespace Realms
 
             internal Dictionary<string, IntPtr> ColumnIndices;
 
-            internal int PrimaryKeyColumnIndex;
+            internal int PrimaryKeyColumnIndex;  // starts as INVALID_COLUMN_INDEX
 
             internal Schema.ObjectSchema Schema;
         }
 
-        internal void _CopyDataFromBackingFieldsToRow()
+        internal void _CopyDataFromBackingFieldsToRow(RealmObject copyFrom)
         {
             Debug.Assert(this.IsManaged);
 
@@ -95,7 +100,7 @@ namespace Realms
                                property.PropertyInfo.GetCustomAttribute<WovenPropertyAttribute>().BackingFieldName, 
                                BindingFlags.Instance | BindingFlags.NonPublic
                             );
-                var value = field?.GetValue(this);
+                var value = field?.GetValue(copyFrom);
                 if (value != null) {
                     var listValue = value as IEnumerable<RealmObject>;
                     if (listValue != null)  // assume it is IList NOT a RealmList so need to wipe afer copy
