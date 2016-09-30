@@ -2758,13 +2758,19 @@ ModuleWeaver.cs
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 #661 CopyFrom and CopyToOrUpdate
 
-StandAloneObjectTests.cs
+ObjectSchema.cs
+- PrimaryKeyProperty added
+- ObjectSchema.FromType factory set PrimaryKeyProperty
 
+StandAloneObjectTests.cs
+- refactored SetStandalonePerson from AddToRealm
+- CopyToRealmAdds added
 
 Realm.cs
 - INVALID_COLUMN_INDEX added
 - CreateRealmObjectMetadata - use INVALID_COLUMN_INDEX
 - Manage - pass the object into _CopyDataFromBackingFieldsToRow
+- ObjectWithSamePrimaryKey added with overload
 
 RealmObject.cs
 - added HasPrimaryKey
@@ -2772,3 +2778,10 @@ RealmObject.cs
 
 RealmNeedPrimaryKeyValueException.cs
 - added
+
+PrimaryKeyTests.cs
+- SchemaKnowsPrimaryKeyProperty added
+- SchemaHasNullPrimaryKeyProperty added
+- PrimaryKeyFailsIfClassNotinRealm should trap 
+
+

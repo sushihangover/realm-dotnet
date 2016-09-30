@@ -45,6 +45,14 @@ namespace Realms.Schema
         /// </summary>
         public int Count => _properties.Count;
 
+        /// <summary>
+        /// Describes the optional property declared as PrimaryKey.
+        /// </summary>
+        /// <remarks>
+        /// Used internally but also useful to implement abstraction layers which need to retrieve objects by primary key.
+        /// </remarks>
+        public Property? PrimaryKeyProperty;
+
         internal Type Type;
 
         internal IEnumerable<string> PropertyNames => _properties.Keys;
@@ -94,6 +102,7 @@ namespace Realms.Schema
             Contract.EndContractBlock();
 
             var builder = new Builder(type.Name);
+            Property? primaryKeyProperty = null;
             foreach (var property in type.GetProperties(BindingFlags.Instance | BindingFlags.DeclaredOnly | BindingFlags.NonPublic | BindingFlags.Public))
             {
                 if (property.GetCustomAttribute<WovenPropertyAttribute>() == null) continue;
@@ -106,6 +115,8 @@ namespace Realms.Schema
                     IsIndexed = isPrimaryKey || property.GetCustomAttribute<IndexedAttribute>() != null,
                     PropertyInfo = property
                 };
+                if (isPrimaryKey)
+                    primaryKeyProperty = schemaProperty;
 
                 Type innerType;
                 bool isNullable;
@@ -118,6 +129,7 @@ namespace Realms.Schema
 
             var ret = builder.Build();
             ret.Type = type;
+            ret.PrimaryKeyProperty = primaryKeyProperty;
             return ret;
         }
 

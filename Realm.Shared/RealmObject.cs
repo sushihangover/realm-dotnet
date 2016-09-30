@@ -58,7 +58,23 @@ namespace Realms
         /// <summary>
         /// Returns true if the object has a column with the PimaryKey attribute.
         /// </summary>
+        /// <remarks>
+        /// Also can retrieve the value with <see cref="GetPrimaryKeyValue">GetPrimaryKeyValue</see>.
+        /// </remarks>
         public bool HasPrimaryKey => _metadata.PrimaryKeyColumnIndex != Realm.INVALID_COLUMN_INDEX;
+
+        ///<summary>
+        /// Current value of the PrimaryKey property or null if there is not one.
+        ///</summary>
+        public object PrimaryKeyValue { 
+            get {
+                if (_metadata.PrimaryKeyColumnIndex == Realm.INVALID_COLUMN_INDEX)
+                    return null;
+                    
+                Schema.Property pkProperty = _metadata.Schema.PrimaryKeyProperty.GetValueOrDefault();  // guarded above so we know it is valid
+                return pkProperty.PropertyInfo.GetValue(this);
+            }
+        }
 
         /// <summary>
         /// The <see cref="Realm"/> instance this object belongs to, or <code>null</code> if it is unmanaged.
@@ -90,10 +106,11 @@ namespace Realms
             internal Schema.ObjectSchema Schema;
         }
 
+        // TODO rewrite this so this very reflective form is replaced by Fody generating one based on the schema
+        // which would populate a structure and only incur a single call to native, passing that structure 
         internal void _CopyDataFromBackingFieldsToRow(RealmObject copyFrom)
         {
             Debug.Assert(this.IsManaged);
-
             foreach (var property in _metadata.Schema)
             {
                 var field = property.PropertyInfo.DeclaringType.GetField( 

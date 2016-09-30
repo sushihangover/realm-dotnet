@@ -539,7 +539,7 @@ namespace Realms
         public T CopyToRealmOrUpdate<T>(T obj) where T : RealmObject
         {
             if (obj == null)
-                throw new ArgumentNullException(nameof(obj));
+                throw new ArgumentNullException(nameof(T));
 
             if (obj.IsManaged && obj.Realm.SharedRealmHandle == this.SharedRealmHandle)
                 throw new RealmObjectAlreadyManagedByRealmException("The object is already managed by this realm, you can't copy it to itself.");
@@ -549,17 +549,21 @@ namespace Realms
 
             if (!obj.HasPrimaryKey)
                 throw new RealmNeedPrimaryKeyValueException("CopyToRealmOrUpdate can only be used with objects that have a PrimaryKey");
-            
 
             var metadata = Metadata[typeof(T).Name];
             var tableHandle = metadata.Table;
-        RealmObject ret = metadata.Helper.CreateInstance();
-
-            var rowPtr = NativeTable.AddEmptyRow(tableHandle);
-            var rowHandle = CreateRowHandle(rowPtr, SharedRealmHandle);
-
-            obj._Manage(this, rowHandle, metadata);
-            obj._CopyDataFromBackingFieldsToRow();
+            RealmObject ret = ObjectWithSamePrimaryKey(obj, metadata);
+            if (ret == null)
+            {
+                ret = metadata.Helper.CreateInstance();
+                var rowPtr = NativeTable.AddEmptyRow(tableHandle);
+                var rowHandle = CreateRowHandle(rowPtr, SharedRealmHandle);
+                ret._Manage(this, rowHandle, metadata);
+            }
+            ret._CopyDataFromBackingFieldsToRow(obj);
+            //FIXME have an else condition here to copy skipping the primary key if just matched it
+            //FIXME need to recurse CopyToRealmOrUpdate where _CopyDataFromBackingFieldsToRow invoked
+            return (T)ret;
         }
 
 
@@ -696,6 +700,7 @@ namespace Realms
         /// Extract an iterable set of objects for direct use or further query.
         /// </summary>
         /// <typeparam name="T">The Type T must be a RealmObject.</typeparam>
+        /// <exception cref="ArgumentException">If this Realm has a restricted set of classes and doesn't include the specified className.</exception>
         /// <returns>A RealmResults that without further filtering, allows iterating all objects of class T, in this realm.</returns>
         public RealmResults<T> All<T>() where T: RealmObject
         {
@@ -712,6 +717,7 @@ namespace Realms
         /// </summary>
         /// <param name="className">The type of the objects as defined in the schema.</param>
         /// <remarks>Because the objects inside the view are accessed dynamically, the view cannot be queried into using LINQ or other expression predicates.</remarks>
+        /// <exception cref="ArgumentException">If this Realm has a restricted set of classes and doesn't include the specified className.</exception>
         /// <returns>A RealmResults that without further filtering, allows iterating all objects of className, in this realm.</returns>
         public RealmResults<dynamic> All(string className)
         {
@@ -731,7 +737,7 @@ namespace Realms
         /// <typeparam name="T">The Type T must be a RealmObject.</typeparam>
         /// <param name="id">Id to be matched exactly, same as an == search. Int64 argument works for all integer properties supported as PrimaryKey.</param>
         /// <returns>Null or an object matching the id.</returns>
-        /// <exception cref="RealmClassLacksPrimaryKeyException">If the RealmObject class T lacks an [PrimaryKey].</exception>
+        /// <exception cref="RealmClassLacksPrimaryKeyException">If the RealmObject class T lacks a [PrimaryKey].</exception>
         public T ObjectForPrimaryKey<T>(Int64 id) where T : RealmObject
         {
             var metadata = Metadata[typeof(T).Name];
@@ -748,7 +754,7 @@ namespace Realms
         /// <typeparam name="T">The Type T must be a RealmObject.</typeparam>
         /// <param name="id">Id to be matched exactly, same as an == search.</param>
         /// <returns>Null or an object matdhing the id.</returns>
-        /// <exception cref="RealmClassLacksPrimaryKeyException">If the RealmObject class T lacks an [PrimaryKey].</exception>
+        /// <exception cref="RealmClassLacksPrimaryKeyException">If the RealmObject class T lacks a [PrimaryKey].</exception>
         public T ObjectForPrimaryKey<T>(string id) where T : RealmObject
         {
             var metadata = Metadata[typeof(T).Name];
@@ -765,7 +771,7 @@ namespace Realms
         /// <param name="className">Name of class in dynamic situation.</param>
         /// <param name="id">Id to be matched exactly, same as an == search.</param>
         /// <returns>Null or an object matdhing the id.</returns>
-        /// <exception cref="RealmClassLacksPrimaryKeyException">If the RealmObject class lacks an [PrimaryKey].</exception>
+        /// <exception cref="RealmClassLacksPrimaryKeyException">If the RealmObject class lacks a [PrimaryKey].</exception>
         public RealmObject ObjectForPrimaryKey(string className, Int64 id)
         {
             var metadata = Metadata[className];
@@ -782,7 +788,7 @@ namespace Realms
         /// <param name="className">Name of class in dynamic situation.</param>
         /// <param name="id">Id to be matched exactly, same as an == search.</param>
         /// <returns>Null or an object matdhing the id.</returns>
-        /// <exception cref="RealmClassLacksPrimaryKeyException">If the RealmObject class lacks an [PrimaryKey].</exception>
+        /// <exception cref="RealmClassLacksPrimaryKeyException">If the RealmObject class lacks a [PrimaryKey].</exception>
         public RealmObject ObjectForPrimaryKey(string className, string id)
         {
             var metadata = Metadata[className];
@@ -791,6 +797,60 @@ namespace Realms
                 return null;
             return MakeObjectForRow(metadata, rowPtr);
         }
+
+
+        /// <summary>
+        /// Fast lookup of an object in current realm to match either standalone or from another realm.
+        /// </summary>
+        /// <param name="toMatch">Object of the same class that we are trying to retrieve, supplies the primary key.</param>
+        /// <returns>Null or an object matdhing the primary key.</returns>
+        /// <exception cref="RealmClassLacksPrimaryKeyException">If the RealmObject class lacks a [PrimaryKey]</exception>
+        /// <typeparam name="T">The Type T must be a RealmObject.</typeparam>
+        public T ObjectWithSamePrimaryKey<T>(T toMatch) where T : RealmObject
+        {
+            string className = typeof(T).Name;
+            return (T)ObjectWithSamePrimaryKey(toMatch, className);
+        }
+
+
+        /// <summary>
+        /// Fast generic lookup of an object in current realm to match either standalone or from another realm.
+        /// </summary>
+        /// <param name="toMatch">Object of the same class that we are trying to retrieve, supplies the primary key.</param>
+        /// <param name="className">Name of class in dynamic situation.</param>
+        /// <returns>Null or an object matdhing the primary key.</returns>
+        /// <exception cref="RealmClassLacksPrimaryKeyException">If the RealmObject class lacks a [PrimaryKey]</exception>
+        /// <typeparam name="T">The Type T must be a RealmObject.</typeparam>
+        public RealmObject ObjectWithSamePrimaryKey(RealmObject toMatch, string className)
+        {
+            // need to lookup the metadata in THIS Realm because toMatch may be in another
+            RealmObject.Metadata metadata;
+            if (!Metadata.TryGetValue(className, out metadata))
+                throw new ArgumentException($"The class {className} is not in the limited set of classes for this realm");
+            return ObjectWithSamePrimaryKey(toMatch, metadata);
+        }
+
+
+        private RealmObject ObjectWithSamePrimaryKey(RealmObject toMatch, RealmObject.Metadata metadata)
+        {
+            IntPtr rowPtr = IntPtr.Zero;
+            if (!toMatch.HasPrimaryKey)
+                throw new RealmClassLacksPrimaryKeyException($"The class {metadata.Schema.Name} is not in the limited set of classes for this realm");
+
+            Schema.Property pkProperty = metadata.Schema.PrimaryKeyProperty.GetValueOrDefault();  // guarded above so we know it is valid
+            object id = pkProperty.PropertyInfo.GetValue(toMatch);
+
+            if (pkProperty.Type == Realms.Schema.PropertyType.String) 
+                rowPtr = NativeTable.RowForPrimaryKey(metadata.Table, metadata.PrimaryKeyColumnIndex, (string)id);
+            else
+                rowPtr = NativeTable.RowForPrimaryKey(metadata.Table, metadata.PrimaryKeyColumnIndex, (Int64)id);
+
+            if (rowPtr == IntPtr.Zero)
+                return null;
+            return MakeObjectForRow(metadata, rowPtr);
+        }
+
+
         #endregion ObjectForPrimaryKey
 
         /// <summary>

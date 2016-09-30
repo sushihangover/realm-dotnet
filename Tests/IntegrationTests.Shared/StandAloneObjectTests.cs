@@ -65,7 +65,7 @@ namespace IntegrationTests.Shared
         [Test]
         public void AddToRealm()
         {
-            SetStandalonePerson()
+            SetStandalonePerson();
             using (var realm = Realm.GetInstance())
             {
                 using (var transaction = realm.BeginWrite())
@@ -91,18 +91,24 @@ namespace IntegrationTests.Shared
             Assert.DoesNotThrow(() => _person.Equals(otherPerson));
         }
 
+
         [Test]
-        public void CopyToRealmSave()
+        public void CopySimpleToRealmAdds()
         {
             SetStandalonePerson();
             using (var realm = Realm.GetInstance())
             {
-                realm.Write( () => {
-                    var newlyManaged = realm.CopyToRealmOrUpdate(_person);    
+                var numBefore = realm.All<Person>().Count();
+                realm.Write(() =>
+                {
+                    var newlyManaged = realm.CopyToRealmOrUpdate(_person);
                     Assert.That(newlyManaged.IsManaged);
-                    Assert.IsFalse(_person.IsManaged);
+                    Assert.IsFalse(_person.IsManaged);  // left untouched
+                    Assert.That(newlyManaged.FullName, Is.EqualTo(_person.FullName));
                 });
+                Assert.That(numBefore, Is.EqualTo(realm.All<Person>().Count() - 1));
             }
         }
+
     }
 }

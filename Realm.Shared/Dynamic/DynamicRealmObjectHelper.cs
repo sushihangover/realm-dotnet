@@ -25,6 +25,7 @@ namespace Realms.Dynamic
     {
         internal static readonly DynamicRealmObjectHelper Instance = new DynamicRealmObjectHelper();
 
+        /// Method created by Fody for subclasses, to just invoke their default ctor
         public RealmObject CreateInstance()
         {
             return new DynamicRealmObject();

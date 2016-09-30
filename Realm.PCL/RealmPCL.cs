@@ -333,7 +333,7 @@ namespace Realms
         /// <typeparam name="T">The Type T must be a RealmObject.</typeparam>
         /// <param name="id">Id to be matched exactly, same as an == search. Int64 argument works for all integer properties supported as PrimaryKey.</param>
         /// <returns>Null or an object matching the id.</returns>
-        /// <exception cref="RealmClassLacksPrimaryKeyException">If the RealmObject class T lacks an [PrimaryKey].</exception>
+        /// <exception cref="RealmClassLacksPrimaryKeyException">If the RealmObject class T lacks a [PrimaryKey].</exception>
         public T ObjectForPrimaryKey<T>(Int64 id) where T : RealmObject
         {
             RealmPCLHelpers.ThrowProxyShouldNeverBeUsed();
@@ -347,7 +347,7 @@ namespace Realms
         /// <typeparam name="T">The Type T must be a RealmObject.</typeparam>
         /// <param name="id">Id to be matched exactly, same as an == search.</param>
         /// <returns>Null or an object matdhing the id.</returns>
-        /// <exception cref="RealmClassLacksPrimaryKeyException">If the RealmObject class T lacks an [PrimaryKey].</exception>
+        /// <exception cref="RealmClassLacksPrimaryKeyException">If the RealmObject class T lacks a [PrimaryKey].</exception>
         public T ObjectForPrimaryKey<T>(string id) where T : RealmObject
         {
             RealmPCLHelpers.ThrowProxyShouldNeverBeUsed();
@@ -361,7 +361,7 @@ namespace Realms
         /// <param name="className">Name of class in dynamic situation.</param>
         /// <param name="id">Id to be matched exactly, same as an == search.</param>
         /// <returns>Null or an object matdhing the id.</returns>
-        /// <exception cref="RealmClassLacksPrimaryKeyException">If the RealmObject class lacks an [PrimaryKey].</exception>
+        /// <exception cref="RealmClassLacksPrimaryKeyException">If the RealmObject class lacks a [PrimaryKey].</exception>
         public RealmObject ObjectForPrimaryKey(string className, Int64 id)
         {
             RealmPCLHelpers.ThrowProxyShouldNeverBeUsed();
@@ -375,7 +375,7 @@ namespace Realms
         /// <param name="className">Name of class in dynamic situation.</param>
         /// <param name="id">Id to be matched exactly, same as an == search.</param>
         /// <returns>Null or an object matdhing the id.</returns>
-        /// <exception cref="RealmClassLacksPrimaryKeyException">If the RealmObject class lacks an [PrimaryKey].</exception>
+        /// <exception cref="RealmClassLacksPrimaryKeyException">If the RealmObject class lacks a [PrimaryKey].</exception>
         public RealmObject ObjectForPrimaryKey(string className, string id)
         {
             RealmPCLHelpers.ThrowProxyShouldNeverBeUsed();

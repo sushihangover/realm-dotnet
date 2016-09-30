@@ -192,7 +192,7 @@ namespace IntegrationTests.Shared
         public void ExceptionIfNoPrimaryKeyDeclared()
         {
             Assert.Throws<RealmClassLacksPrimaryKeyException>( () => {
-                var foundObj = _realm.ObjectForPrimaryKey<Person>("Zaphod");
+                var foundObj = _realm.ObjectForPrimaryKey<AllTypesObject>("Zaphod");
             });
         }
 
@@ -201,10 +201,25 @@ namespace IntegrationTests.Shared
         public void ExceptionIfNoDynamicIPrimaryKeyDeclared()
         {
             Assert.Throws<RealmClassLacksPrimaryKeyException>( () => {
-                var foundObj = _realm.ObjectForPrimaryKey("Person", "Zaphod");
+                var foundObj = _realm.ObjectForPrimaryKey("AllTypesObject", "Zaphod");
             });
         }
 
+
+        [Test]
+        public void SchemaKnowsPrimaryKeyProperty()
+        {
+            var schemaWithPK = _realm.Schema.Find("PrimaryKeyStringObject");
+            Assert.That(schemaWithPK.PrimaryKeyProperty?.Name, Is.EqualTo("StringProperty"));
+        }
+
+
+        [Test]
+        public void SchemaHasNullPrimaryKeyProperty()
+        {
+            var schemaWithPK = _realm.Schema.Find("Dog");
+            Assert.IsNull(schemaWithPK.PrimaryKeyProperty);
+        }
 
 
         [Test]

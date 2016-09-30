@@ -45,7 +45,7 @@ namespace IntegrationTests
                 var jd = _realm.CreateObject<Person>();
                 jd.FullName = "John Jamez"; 
                 jd.IsInteresting = true;
-                jd.Email = "john@doe.com";
+                jd.Email = "joan@doe.com";
                 jd.Score = 100;
                 jd.Latitude = 40.7637286;
                 jd.Longitude = -73.9748113;

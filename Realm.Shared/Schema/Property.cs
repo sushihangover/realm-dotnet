@@ -31,6 +31,7 @@ namespace Realms.Schema
 
         public PropertyType Type { get; set; }
 
+        // Assert ObjectType == null || (Type==Array || Type==Object)
         public string ObjectType { get; set; }
 
         public bool IsNullable { get; set; }
