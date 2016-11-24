@@ -66,7 +66,7 @@ namespace IntegrationTests
             File.Copy(Path.Combine(sourceDir, realmName), destPath, overwrite);
         }
 
-        private static void RunEventLoop(TimeSpan duration)
+        public static void RunEventLoop(TimeSpan duration)
         {
 #if __IOS__
             CFRunLoop.Current.RunInMode(CFRunLoop.ModeDefault, duration.TotalSeconds, false);
@@ -77,16 +77,6 @@ namespace IntegrationTests
 #else
             throw new NotImplementedException();
 #endif
-        }
-
-        public static void RunEventLoop(int milliseconds)
-        {
-            RunEventLoop(TimeSpan.FromMilliseconds(milliseconds));
-        }
-
-        public static void RunEventLoop()
-        {
-            RunEventLoop(1);
         }
 
 #if __ANDROID__

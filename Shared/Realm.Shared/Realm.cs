@@ -211,13 +211,6 @@ namespace Realms
             _realmChanged?.Invoke(this, e);
         }
 
-        public event ErrorEventHandler OnError;
-
-        internal void NotifyError(Exception ex)
-        {
-            OnError?.Invoke(this, new ErrorEventArgs(ex));
-        }
-
         /// <summary>
         /// Checks if database has been closed.
         /// </summary>
