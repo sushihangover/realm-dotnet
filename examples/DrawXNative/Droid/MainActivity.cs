@@ -16,9 +16,10 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
+using System;
 using Android.App;
-using Android.Views;
 using Android.OS;
+using Android.Views;
 using DrawXShared;
 using SkiaSharp.Views.Android;
 
@@ -36,11 +37,26 @@ namespace DrawX.Droid
 
             // Set our view from the "main" layout resource
             SetContentView(Resource.Layout.Main);
+
+            DrawXSettingsManager.InitLocalSettings();
+        }
+
+        private void SetupDrawer()
+        {
             _canvas = FindViewById<SKCanvasView>(Resource.Id.canvas);
             _canvas.PaintSurface += OnPaintSample;
             _canvas.Touch += OnTouch;
-
-            DrawXSettingsManager.InitLocalSettings();
+            // deferred update until can get view bounds
+            _drawer = new RealmDraw(_canvas.CanvasSize.Width, _canvas.CanvasSize.Height);
+            _drawer.CredentialsEditor = () =>
+            {
+                StartActivity(typeof(LoginScreen));
+            };
+            _drawer.RefreshOnRealmUpdate = () =>
+            {
+                System.Diagnostics.Debug.WriteLine("Refresh callback triggered by Realm");
+                _canvas.Invalidate();
+            };
         }
 
         public override void OnWindowFocusChanged(bool hasFocus)
@@ -48,17 +64,12 @@ namespace DrawX.Droid
             base.OnWindowFocusChanged(hasFocus);
             if (_drawer == null)
             {
-                // deferred update until can get view bounds
-                _drawer = new RealmDraw(_canvas.CanvasSize.Width, _canvas.CanvasSize.Height);
-                _drawer.CredentialsEditor = () =>
+                if (DrawXSettingsManager.HasCredentials())
                 {
-                    ////TODO Android eqivalent InvokeOnMainThread(() => EditCredentials());
-                };
-                _drawer.RefreshOnRealmUpdate = () =>
-                {
-                    Debug.WriteLine("Refresh callback triggered by Realm");
-                    _canvas.Invalidate();
-                };
+                    // assume we can login and be able to draw
+                    // TODO handle initial failure to login despite saved credentials
+                    SetupDrawer();
+                }
             }
         }
 
@@ -74,7 +85,7 @@ namespace DrawX.Droid
             
             float fx = touchEventArgs.Event.GetX();
             float fy = touchEventArgs.Event.GetY();
-            bool needsRefresh = false;
+            var needsRefresh = false;
             switch (touchEventArgs.Event.Action & MotionEventActions.Mask)
             {
                 case MotionEventActions.Down:
@@ -98,6 +109,7 @@ namespace DrawX.Droid
             }
         }
 
+        // use the back button in preference to trying to detect shake, which is not built in
         public override void OnBackPressed()
         {
             _drawer.ErasePaths();

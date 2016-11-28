@@ -14,6 +14,8 @@ Note for our testing purposes, the `DrawXNativeLocal` variants use an adjacent R
 
 **Note:** due to the way that the IOS designer.cs files are generated, instead of a shared link to `ViewController.cs`, an immediate adjacent copy is required.
 
+Similarly, the Droid projects have duplicate `Resource` folders as trying to refer to a sibling folder doesn't correctly build resources.
+
 ## Installation Instructions
 
 1. [Download the macOS version](https://realm.io/docs/realm-mobile-platform/get-started/) of the Realm Mobile Platform.

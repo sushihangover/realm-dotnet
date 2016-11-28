@@ -10,7 +10,7 @@
     <AssemblyName>DrawX.Droid</AssemblyName>
     <TargetFrameworkVersion>v7.0</TargetFrameworkVersion>
     <AndroidApplication>True</AndroidApplication>
-    <AndroidResgenFile>.\Droid\Resources\Resource.designer.cs</AndroidResgenFile>
+    <AndroidResgenFile>Resources\Resource.designer.cs</AndroidResgenFile>
     <AndroidResgenClass>Resource</AndroidResgenClass>
     <AndroidManifest>..\Droid\Properties\AndroidManifest.xml</AndroidManifest>
     <MonoAndroidResourcePrefix>Resources</MonoAndroidResourcePrefix>
@@ -65,13 +65,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Droid\MainActivity.cs" />
-    <Compile Include="Resources\Resource.designer.cs" >
+    <Compile Include="Resources\Resource.designer.cs">
       <ExcludeFromStyleCop>true</ExcludeFromStyleCop>      
     </Compile>
     <Compile Include="..\Droid\Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\AboutResources.txt" />
     <None Include="..\Droid\Properties\AndroidManifest.xml" />
     <None Include="..\Droid\Assets\AboutAssets.txt" />
     <None Include="..\Droid\packages.config" />
