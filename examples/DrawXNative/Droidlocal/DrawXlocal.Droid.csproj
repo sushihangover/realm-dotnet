@@ -68,7 +68,12 @@
     <Compile Include="Resources\Resource.designer.cs">
       <ExcludeFromStyleCop>true</ExcludeFromStyleCop>      
     </Compile>
-    <Compile Include="..\Droid\Properties\AssemblyInfo.cs" />
+    <Compile Include="..\Droid\Properties\AssemblyInfo.cs">
+          <ExcludeFromStyleCop>true</ExcludeFromStyleCop>      
+    </Compile>
+    <Compile Include="..\Droid\Screens\LoginDialog.cs">
+      <Link>Screens\LoginDialog.cs</Link>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Droid\Properties\AndroidManifest.xml" />

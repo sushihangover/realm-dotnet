@@ -28,8 +28,8 @@ namespace DrawX.Droid
     [Activity(Label = "DrawX", MainLauncher = true, Icon = "@mipmap/icon")]
     public class MainActivity : Activity
     {
-        RealmDraw _drawer;
-        SKCanvasView _canvas;
+        private RealmDraw _drawer;
+        private SKCanvasView _canvas;
 
         protected override void OnCreate(Bundle savedInstanceState)
         {
@@ -46,11 +46,12 @@ namespace DrawX.Droid
             _canvas = FindViewById<SKCanvasView>(Resource.Id.canvas);
             _canvas.PaintSurface += OnPaintSample;
             _canvas.Touch += OnTouch;
-            // deferred update until can get view bounds
+            //// deferred update until can get view bounds
             _drawer = new RealmDraw(_canvas.CanvasSize.Width, _canvas.CanvasSize.Height);
             _drawer.CredentialsEditor = () =>
             {
-                StartActivity(typeof(LoginScreen));
+                var dialog = new LoginDialog();
+                dialog.Show(FragmentManager, "login");
             };
             _drawer.RefreshOnRealmUpdate = () =>
             {
@@ -81,8 +82,10 @@ namespace DrawX.Droid
         private void OnTouch(object sender, View.TouchEventArgs touchEventArgs)
         {
             if (_drawer == null)
+            {
                 return;  // in case managed to trigger before focus event finished setup
-            
+            }
+
             float fx = touchEventArgs.Event.GetX();
             float fy = touchEventArgs.Event.GetY();
             var needsRefresh = false;
@@ -103,6 +106,7 @@ namespace DrawX.Droid
                     needsRefresh = true;
                     break;
             }
+
             if (needsRefresh)
             {
                 _canvas.Invalidate();
@@ -117,4 +121,3 @@ namespace DrawX.Droid
         }
     }
 }
-
