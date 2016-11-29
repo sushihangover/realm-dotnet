@@ -33,6 +33,8 @@ namespace DrawX.Droid
 {
     public class LoginDialog : DialogFragment
     {
+        public Action<bool> OnCloseLogin { get; set; }  // caller should set so can use to dismiss
+
         public override Dialog OnCreateDialog(Bundle savedInstanceState)
         {
             OnCreate(savedInstanceState);
@@ -42,30 +44,30 @@ namespace DrawX.Droid
             var inflator = Activity.LayoutInflater;
             var dialogView = inflator.Inflate(Resource.Layout.LoginLayout, null);
 
-            if (dialogView != null)
+            if (dialogView == null)
             {
-                var serverAddress = dialogView.FindViewById<EditText>(Resource.Id.serverIPEntry);
-                var username = dialogView.FindViewById<EditText>(Resource.Id.usernameEntry);
-                var password = dialogView.FindViewById<EditText>(Resource.Id.passwordEntry);
-                var cancelButton = dialogView.FindViewById<Button>(Resource.Id.cancelButton);
-                var loginButton = dialogView.FindViewById<Button>(Resource.Id.loginButton);
-
-                var s = DrawXSettingsManager.Settings;
-                serverAddress.Text = s.ServerIP;
-                username.Text = s.Username;
-                password.Text = s.Password;
-
-                cancelButton.Click += (sender, e) =>
-                {
-                    ((AlertDialog)sender).Dismiss();
-                };
-                loginButton.Click += (sender, e) =>
-                {
-                    bool changedServer = DrawXSettingsManager.UpdateCredentials(serverAddress.Text, username.Text, password.Text);
-                    ((AlertDialog)sender).Dismiss();
-                };
+                return null;
             }
 
+            var serverAddress = dialogView.FindViewById<EditText>(Resource.Id.serverIPEntry);
+            var username = dialogView.FindViewById<EditText>(Resource.Id.usernameEntry);
+            var password = dialogView.FindViewById<EditText>(Resource.Id.passwordEntry);
+            var s = DrawXSettingsManager.Settings;
+            serverAddress.Text = s.ServerIP;
+            username.Text = s.Username;
+            password.Text = s.Password;
+
+            builder.SetView(dialogView);
+            builder.SetPositiveButton("Login", (sender, e) =>
+            {
+                bool changedServer = DrawXSettingsManager.UpdateCredentials(serverAddress.Text, username.Text, password.Text);
+                ((AlertDialog)sender).Dismiss();
+                OnCloseLogin(changedServer);
+            });
+            builder.SetNegativeButton("Cancel", (sender, e) =>
+            {
+                ((AlertDialog)sender).Dismiss();
+            });
             return builder.Create();
         }
     }

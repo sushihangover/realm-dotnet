@@ -30,6 +30,7 @@ namespace DrawX.Droid
     {
         private RealmDraw _drawer;
         private SKCanvasView _canvas;
+        private bool _hasShownCredentials;
 
         protected override void OnCreate(Bundle savedInstanceState)
         {
@@ -50,8 +51,7 @@ namespace DrawX.Droid
             _drawer = new RealmDraw(_canvas.CanvasSize.Width, _canvas.CanvasSize.Height);
             _drawer.CredentialsEditor = () =>
             {
-                var dialog = new LoginDialog();
-                dialog.Show(FragmentManager, "login");
+                EditCredentials();
             };
             _drawer.RefreshOnRealmUpdate = () =>
             {
@@ -60,9 +60,9 @@ namespace DrawX.Droid
             };
         }
 
-        public override void OnWindowFocusChanged(bool hasFocus)
+        protected override void OnStart()
         {
-            base.OnWindowFocusChanged(hasFocus);
+            base.OnStart();
             if (_drawer == null)
             {
                 if (DrawXSettingsManager.HasCredentials())
@@ -71,6 +71,12 @@ namespace DrawX.Droid
                     // TODO handle initial failure to login despite saved credentials
                     SetupDrawer();
                 }
+            }
+
+            if (!_hasShownCredentials)
+            {
+                EditCredentials();
+                _hasShownCredentials = true;
             }
         }
 
@@ -118,6 +124,27 @@ namespace DrawX.Droid
         {
             _drawer.ErasePaths();
             _canvas.Invalidate();
+        }
+
+        private void EditCredentials()
+        {
+            var dialog = new LoginDialog();
+            dialog.OnCloseLogin = (bool changedServer) =>
+            {
+                if (changedServer || _drawer == null)
+                {
+                    if (DrawXSettingsManager.HasCredentials())
+                    {
+                        SetupDrawer();  // pointless unless contact server
+                        _drawer.LoginToServerAsync();
+                    }
+                    //// TODO allow user to launch locally if server not available
+                }
+
+                _canvas.Invalidate();
+            };
+
+            dialog.Show(FragmentManager, "login");
         }
     }
 }

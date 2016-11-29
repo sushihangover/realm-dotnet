@@ -45,16 +45,7 @@ namespace DrawX.Droid
 		{
 			
 			// aapt resource value: 0x7f050006
-			public const int buttonsLayout = 2131034118;
-			
-			// aapt resource value: 0x7f050007
-			public const int cancelButton = 2131034119;
-			
-			// aapt resource value: 0x7f050009
-			public const int canvas = 2131034121;
-			
-			// aapt resource value: 0x7f050008
-			public const int loginButton = 2131034120;
+			public const int canvas = 2131034118;
 			
 			// aapt resource value: 0x7f050005
 			public const int passwordEntry = 2131034117;

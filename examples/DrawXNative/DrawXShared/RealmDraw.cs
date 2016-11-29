@@ -151,7 +151,7 @@ namespace DrawXShared
 
         private void InitCurrentColor()
         {
-            _currentColor = SwatchColor.ColorsByName [Settings.LastColorUsed];
+            _currentColor = SwatchColor.ColorsByName[Settings.LastColorUsed];
             _currentColorIndex = SwatchColor.Colors.IndexOf(_currentColor);
         }
         #endregion Settings

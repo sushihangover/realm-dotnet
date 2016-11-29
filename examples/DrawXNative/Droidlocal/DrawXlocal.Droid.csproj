@@ -38,13 +38,6 @@
     <AndroidUseSharedRuntime>false</AndroidUseSharedRuntime>
     <AndroidSupportedAbis>armeabi-v7a;x86;arm64-v8a;x86_64</AndroidSupportedAbis>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'ReleaseAdhoc|iPhone' ">
-    <Optimize>false</Optimize>
-    <OutputPath>bin\iPhone\ReleaseAdhoc</OutputPath>
-    <WarningLevel>4</WarningLevel>
-    <AssemblyName>DrawXlocal.Droid</AssemblyName>
-    <AndroidSupportedAbis>arm64-v8a;armeabi;armeabi-v7a;x86</AndroidSupportedAbis>
-  </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Xml" />
@@ -57,10 +50,10 @@
       <HintPath>..\packages\Remotion.Linq.2.1.1\lib\portable-net45+win+wpa81+wp80\Remotion.Linq.dll</HintPath>
     </Reference>
     <Reference Include="SkiaSharp">
-      <HintPath>..\packages\SkiaSharp.1.55.0\lib\MonoAndroid\SkiaSharp.dll</HintPath>
+      <HintPath>..\packages\SkiaSharp.1.55.1\lib\MonoAndroid\SkiaSharp.dll</HintPath>
     </Reference>
     <Reference Include="SkiaSharp.Views.Android">
-      <HintPath>..\packages\SkiaSharp.Views.1.55.0\lib\MonoAndroid\SkiaSharp.Views.Android.dll</HintPath>
+      <HintPath>..\packages\SkiaSharp.Views.1.55.1\lib\MonoAndroid\SkiaSharp.Views.Android.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
