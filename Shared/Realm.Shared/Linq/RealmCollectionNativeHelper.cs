@@ -16,20 +16,25 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-using Realms;
+using System;
+using System.Runtime.InteropServices;
 
-namespace PurePCLBuildableTest
+namespace Realms
 {
-    public static class TestBuildingRealmFromPCL
+    internal static class RealmCollectionNativeHelper
     {
-        public static Realm MakeARealmWithPCL()
+        internal interface Interface
         {
-            var conf = new RealmConfiguration("ThisIsDeclaredInPCL.realm");
-            conf.ObjectClasses = new[] { typeof(ObjectInPCL) };  // only this class in the Realm
-            Realm.DeleteRealm(conf);
-            var ret = Realm.GetInstance(conf);
-            ret.Write(() => ret.CreateObject<ObjectInPCL>());
-            return ret;
+            void NotifyCallbacks(CollectionHandleBase.CollectionChangeSet? changes, NativeException? exception);
+        }
+
+#if __IOS__
+        [ObjCRuntime.MonoPInvokeCallback(typeof(CollectionHandleBase.NotificationCallbackDelegate))]
+#endif
+        internal static void NotificationCallback(IntPtr managedResultsHandle, IntPtr changes, IntPtr exception)
+        {
+            var results = (Interface)GCHandle.FromIntPtr(managedResultsHandle).Target;
+            results.NotifyCallbacks(new PtrTo<CollectionHandleBase.CollectionChangeSet>(changes).Value, new PtrTo<NativeException>(exception).Value);
         }
     }
 }

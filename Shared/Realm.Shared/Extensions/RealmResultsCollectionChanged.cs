@@ -19,8 +19,6 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
-using System.ComponentModel;
-using System.Diagnostics;
 using System.Linq;
 
 namespace Realms
@@ -28,13 +26,47 @@ namespace Realms
     public static class RealmResultsCollectionChanged
     {
         /// <summary>
+        /// A convenience method that casts <c>IQueryable{T}</c> to <see cref="IRealmCollection{T}"/> which implements INotifyCollectionChanged.
+        /// </summary>
+        /// <param name="results">The <see cref="IQueryable{T}" /> to observe for changes.</param>
+        /// <typeparam name="T">Type of the RealmObject in the results.</typeparam>
+        /// <seealso cref="IRealmCollection{T}.SubscribeForNotifications(NotificationCallbackDelegate{T})"/>
+        /// <returns>The a collection, implementing <see cref="INotifyCollectionChanged"/>.</returns>
+        public static IRealmCollection<T> AsRealmCollection<T>(this IQueryable<T> results) where T : RealmObject
+        {
+            if (!(results is IRealmCollection<T>))
+            {
+                throw new ArgumentException($"{nameof(results)} must be an instance of IRealmCollection<{typeof(T).Name}>.", nameof(results));
+            }
+
+            return (IRealmCollection<T>)results;
+        }
+
+        /// <summary>
+        /// A convenience method that casts <c>IQueryable{T}</c> to <see cref="IRealmCollection{T}"/> and subscribes for change notifications.
+        /// </summary>
+        /// <param name="results">The <see cref="IQueryable{T}" /> to observe for changes.</param>
+        /// <typeparam name="T">Type of the RealmObject in the results.</typeparam>
+        /// <seealso cref="IRealmCollection{T}.SubscribeForNotifications(NotificationCallbackDelegate{T})"/>
+        /// <param name="callback">The callback to be invoked with the updated <see cref="RealmResults{T}" />.</param>
+        /// <returns>
+        /// A subscription token. It must be kept alive for as long as you want to receive change notifications.
+        /// To stop receiving notifications, call <see cref="IDisposable.Dispose" />.
+        /// </returns>
+        public static IDisposable SubscribeForNotifications<T>(this IQueryable<T> results, NotificationCallbackDelegate<T> callback) where T : RealmObject
+        {
+            return results.AsRealmCollection().SubscribeForNotifications(callback);
+        }
+
+        /// <summary>
         /// Wraps a <see cref="RealmResults{T}" /> in an implementation of <see cref="INotifyCollectionChanged" /> so that it may be used in MVVM databinding.
         /// </summary>
         /// <param name="results">The <see cref="RealmResults{T}" /> to observe for changes.</param>
         /// <param name="errorCallback">An error callback that will be invoked if the observing thread raises an error.</param>
         /// <typeparam name="T">Type of the RealmObject in the results.</typeparam>
         /// <returns>An <see cref="ObservableCollection{T}" />-like object useful for MVVM databinding.</returns>
-        /// <seealso cref="RealmResults{T}.SubscribeForNotifications(RealmResults{T}.NotificationCallbackDelegate)"/>
+        /// <seealso cref="IRealmCollection{T}.SubscribeForNotifications(NotificationCallbackDelegate{T})"/>
+        [Obsolete("Use .ToNotifyCollectionChanged without arguments. For error callback, use Realm.Error.")]
         public static INotifyCollectionChanged ToNotifyCollectionChanged<T>(this IOrderedQueryable<T> results, Action<Exception> errorCallback) where T : RealmObject
         {
             return ToNotifyCollectionChanged(results, errorCallback, coalesceMultipleChangesIntoReset: false);
@@ -51,7 +83,8 @@ namespace Realms
         /// </param>
         /// <typeparam name="T">Type of the RealmObject in the results.</typeparam>
         /// <returns>An <see cref="ObservableCollection{T}" />-like object useful for MVVM databinding.</returns>
-        /// <seealso cref="RealmResults{T}.SubscribeForNotifications(RealmResults{T}.NotificationCallbackDelegate)"/>
+        /// <seealso cref="IRealmCollection{T}.SubscribeForNotifications(NotificationCallbackDelegate{T})"/>
+        [Obsolete("Use .ToNotifyCollectionChanged without arguments. For error callback, use Realm.Error.")]
         public static INotifyCollectionChanged ToNotifyCollectionChanged<T>(this IOrderedQueryable<T> results, Action<Exception> errorCallback, bool coalesceMultipleChangesIntoReset) where T : RealmObject
         {
             if (results == null)
@@ -69,102 +102,7 @@ namespace Realms
                 throw new ArgumentNullException(nameof(errorCallback));
             }
 
-            return new ReadOnlyObservableCollection<T>(new Adapter<T>((RealmResults<T>)results, errorCallback, coalesceMultipleChangesIntoReset));
-        }
-
-        public sealed class Adapter<T> : ObservableCollection<T> where T : RealmObject
-        {
-            private readonly RealmResults<T> _results;
-            private readonly IDisposable _token;
-            private readonly Action<Exception> _errorCallback;
-            private readonly bool _coalesceMultipleChangesIntoReset;
-
-            private bool _suspendNotifications;
-
-            public Adapter(RealmResults<T> results, Action<Exception> errorCallback, bool coalesceMultipleChangesIntoReset) : base(results)
-            {
-                _results = results;
-                _errorCallback = errorCallback;
-                _coalesceMultipleChangesIntoReset = coalesceMultipleChangesIntoReset;
-
-                _token = results.SubscribeForNotifications(OnChange);
-                Debug.Assert(_token != null, "Subscription token must not be null.");
-            }
-
-            ~Adapter()
-            {
-                _token.Dispose();
-            }
-
-            private void OnChange(RealmResults<T> sender, RealmResults<T>.ChangeSet change, Exception error)
-            {
-                if (error != null)
-                {
-                    _errorCallback(error);
-                }
-                else if (change != null)
-                {
-                    _suspendNotifications = _coalesceMultipleChangesIntoReset && change.InsertedIndices.Length + change.DeletedIndices.Length > 1;
-
-                    foreach (var removed in change.DeletedIndices.Reverse())
-                    {
-                        // the row has been deleted, we need to recreate the adapter's contents
-                        if (!this[removed].ObjectHandle.IsValid)
-                        {
-                            Recreate();
-                            return;
-                        }
-
-                        RemoveAt(removed);
-                    }
-
-                    foreach (var added in change.InsertedIndices)
-                    {
-                        InsertItem(added, _results[added]);
-                    }
-
-                    if (_suspendNotifications)
-                    {
-                        RaiseReset();
-                        _suspendNotifications = false;
-                    }
-                }
-            }
-
-            private void Recreate()
-            {
-                _suspendNotifications = true;
-                this.Clear();
-                foreach (var item in _results)
-                {
-                    this.Add(item);
-                }
-
-                _suspendNotifications = false;
-                RaiseReset();
-            }
-
-            private void RaiseReset()
-            {
-                base.OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
-                base.OnPropertyChanged(new PropertyChangedEventArgs(nameof(Count)));
-            }
-
-            protected override void OnCollectionChanged(NotifyCollectionChangedEventArgs e)
-            {
-                if (!_suspendNotifications)
-                {
-                    base.OnCollectionChanged(e);
-                }
-            }
-
-            protected override void OnPropertyChanged(PropertyChangedEventArgs e)
-            {
-                if (!_suspendNotifications)
-                {
-                    base.OnPropertyChanged(e);
-                }
-            }
+            return (RealmResults<T>)results;
         }
     }
 }

@@ -1,4 +1,4 @@
-////////////////////////////////////////////////////////////////////////////
+﻿////////////////////////////////////////////////////////////////////////////
 //
 // Copyright 2016 Realm Inc.
 //
@@ -17,6 +17,16 @@
 ////////////////////////////////////////////////////////////////////////////
 
 using System;
-using ObjCRuntime;
+using System.Net;
 
-[assembly: LinkWith("libwrappers.a", LinkTarget.ArmV7 | LinkTarget.ArmV7s | LinkTarget.Arm64 | LinkTarget.Simulator | LinkTarget.Simulator64, SmartLink = true, LinkerFlags = "-lstdc++ -lz")]
+namespace Realms.Sync
+{
+    public class HttpException : Exception
+    {
+        public HttpStatusCode StatusCode { get; }
+
+        public string ReasonPhrase { get; }
+
+        public string Payload { get; }
+    }
+}

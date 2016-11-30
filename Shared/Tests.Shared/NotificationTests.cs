@@ -18,14 +18,11 @@
 
 #if ENABLE_INTERNAL_NON_PCL_TESTS
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 using NUnit.Framework;
 using Realms;
 
@@ -81,24 +78,182 @@ namespace IntegrationTests.Shared
         }
 
         [Test]
+        public void RealmError_WhenNoSubscribers_OutputsMessageInConsole()
+        {
+            using (var sw = new StringWriter())
+            {
+                var original = Console.Error;
+                Console.SetError(sw);
+                _realm.NotifyError(new Exception());
+
+                Assert.That(sw.ToString(), Contains.Substring("exception").And.ContainsSubstring("Realm.Error"));
+                Console.SetError(original);
+            }
+        }
+
+        [Test]
         public void ResultsShouldSendNotifications()
         {
             var query = _realm.All<Person>();
-            RealmResults<Person>.ChangeSet changes = null;
-            RealmResults<Person>.NotificationCallbackDelegate cb = (s, c, e) => changes = c;
+            ChangeSet changes = null;
+            NotificationCallbackDelegate<Person> cb = (s, c, e) => changes = c;
 
             using (query.SubscribeForNotifications(cb))
             {
                 _realm.Write(() => _realm.CreateObject<Person>());
 
-                TestHelpers.RunEventLoop(TimeSpan.FromMilliseconds(100));
+                TestHelpers.RunEventLoop();
                 Assert.That(changes, Is.Not.Null);
                 Assert.That(changes.InsertedIndices, Is.EquivalentTo(new int[] { 0 }));
             }
         }
 
+        [Test]
+        public void CollectionChanged_WhenUnsubscribed_ShouldStopReceivingNotifications()
+        {
+            _realm.Write(() =>
+            {
+                _realm.Add(new OrderedObject
+                {
+                    Order = 0,
+                    IsPartOfResults = true
+                });
+            });
+
+            Exception error = null;
+            _realm.Error += (sender, e) =>
+            {
+                error = e.GetException();
+            };
+
+            var query = _realm.All<OrderedObject>().Where(o => o.IsPartOfResults).OrderBy(o => o.Order).AsRealmCollection();
+            var handle = GCHandle.Alloc(query); // prevent this from being collected across event loops
+            try
+            {
+                // wait for the initial notification to come through
+                TestHelpers.RunEventLoop();
+
+                var eventArgs = new List<NotifyCollectionChangedEventArgs>();
+                var handler = new NotifyCollectionChangedEventHandler((sender, e) =>
+                {
+                    eventArgs.Add(e);
+                });
+                query.CollectionChanged += handler;
+
+                Assert.That(error, Is.Null);
+
+                _realm.Write(() =>
+                {
+                    _realm.Add(new OrderedObject
+                    {
+                        Order = 1,
+                        IsPartOfResults = true
+                    });
+                });
+
+                TestHelpers.RunEventLoop();
+                
+                Assert.That(error, Is.Null);
+                Assert.That(eventArgs.Count, Is.EqualTo(1));
+                Assert.That(eventArgs[0].Action, Is.EqualTo(NotifyCollectionChangedAction.Add));
+
+                _realm.Write(() =>
+                {
+                    _realm.Add(new OrderedObject
+                    {
+                        Order = 2,
+                        IsPartOfResults = true
+                    });
+                });
+
+                TestHelpers.RunEventLoop();
+
+                Assert.That(error, Is.Null);
+                Assert.That(eventArgs.Count, Is.EqualTo(2));
+                Assert.That(eventArgs.All(e => e.Action == NotifyCollectionChangedAction.Add));
+
+                query.CollectionChanged -= handler;
+
+                _realm.Write(() =>
+                {
+                    _realm.Add(new OrderedObject
+                    {
+                        Order = 3,
+                        IsPartOfResults = true
+                    });
+                });
+
+                TestHelpers.RunEventLoop();
+
+                Assert.That(error, Is.Null);
+                Assert.That(eventArgs.Count, Is.EqualTo(2));
+                Assert.That(eventArgs.All(e => e.Action == NotifyCollectionChangedAction.Add));
+            }
+            finally
+            {
+                handle.Free();
+            }
+        }
+
+        [Test]
+        public void CollectionChanged_WhenTransactionHasBothAddAndRemove_ShouldReset()
+        {
+            var first = new OrderedObject
+            {
+                Order = 0,
+                IsPartOfResults = true
+            };
+            _realm.Write(() =>
+            {
+                _realm.Add(first);
+            });
+
+            Exception error = null;
+            _realm.Error += (sender, e) =>
+            {
+                error = e.GetException();
+            };
+
+            var query = _realm.All<OrderedObject>().Where(o => o.IsPartOfResults).OrderBy(o => o.Order).AsRealmCollection();
+            var handle = GCHandle.Alloc(query); // prevent this from being collected across event loops
+            try
+            {
+                // wait for the initial notification to come through
+                TestHelpers.RunEventLoop();
+
+                var eventArgs = new List<NotifyCollectionChangedEventArgs>();
+                query.CollectionChanged += (sender, e) =>
+                {
+                    eventArgs.Add(e);
+                };
+
+                Assert.That(error, Is.Null);
+
+                _realm.Write(() =>
+                {
+                    _realm.Add(new OrderedObject
+                    {
+                        Order = 1,
+                        IsPartOfResults = true
+                    });
+
+                    _realm.Remove(first);
+                });
+
+                TestHelpers.RunEventLoop();
+
+                Assert.That(error, Is.Null);
+                Assert.That(eventArgs.Count, Is.EqualTo(1));
+                Assert.That(eventArgs[0].Action, Is.EqualTo(NotifyCollectionChangedAction.Reset));
+            }
+            finally
+            {
+                handle.Free();
+            }
+        }
+
         [TestCaseSource(nameof(CollectionChangedTestCases))]
-        public void TestCollectionChangedAdapter(int[] initial, NotifyCollectionChangedAction action, int[] change, bool coalesce)
+        public void TestCollectionChangedAdapter(int[] initial, NotifyCollectionChangedAction action, int[] change, int startIndex)
         {
             _realm.Write(() =>
             {
@@ -111,19 +266,22 @@ namespace IntegrationTests.Shared
             });
 
             Exception error = null;
-            var query = _realm.All<OrderedObject>().Where(o => o.IsPartOfResults).OrderBy(o => o.Order);
-            var observable = query.ToNotifyCollectionChanged(e => error = e, coalesceMultipleChangesIntoReset: coalesce);
-            var handle = GCHandle.Alloc(observable); // prevent this from being collected across event loops
+            _realm.Error += (sender, e) =>
+            {
+                error = e.GetException();
+            };
+
+            var query = _realm.All<OrderedObject>().Where(o => o.IsPartOfResults).OrderBy(o => o.Order).AsRealmCollection();
+            var handle = GCHandle.Alloc(query); // prevent this from being collected across event loops
 
             try
             {
                 // wait for the initial notification to come through
-                TestHelpers.RunEventLoop(TimeSpan.FromMilliseconds(100));
+                TestHelpers.RunEventLoop();
 
                 var eventArgs = new List<NotifyCollectionChangedEventArgs>();
-                observable.CollectionChanged += (o, e) => eventArgs.Add(e);
+                query.CollectionChanged += (o, e) => eventArgs.Add(e);
 
-                Assert.That(observable, Is.EquivalentTo(query));
                 Assert.That(error, Is.Null);
                 _realm.Write(() =>
                 {
@@ -145,24 +303,27 @@ namespace IntegrationTests.Shared
                     }
                 });
 
-                TestHelpers.RunEventLoop(TimeSpan.FromMilliseconds(100));
-                Assert.That(observable, Is.EquivalentTo(query));
+                TestHelpers.RunEventLoop();
                 Assert.That(error, Is.Null);
 
-                if (coalesce && change.Length > 1)
+                Assert.That(eventArgs.Count, Is.EqualTo(1));
+                var arg = eventArgs[0];
+                if (startIndex < 0)
                 {
-                    Assert.That(eventArgs.Single().Action, Is.EqualTo(NotifyCollectionChangedAction.Reset));
+                    Assert.That(arg.Action == NotifyCollectionChangedAction.Reset);
                 }
                 else
                 {
-                    Assert.That(eventArgs.All(e => e.Action == action));
+                    Assert.That(arg.Action == action);
                     if (action == NotifyCollectionChangedAction.Add)
                     {
-                        Assert.That(eventArgs.SelectMany(e => e.NewItems.Cast<OrderedObject>()).Select(o => o.Order), Is.EquivalentTo(change));
+                        Assert.That(arg.NewStartingIndex, Is.EqualTo(startIndex));
+                        Assert.That(arg.NewItems.Cast<OrderedObject>().Select(o => o.Order), Is.EquivalentTo(change));
                     }
                     else if (action == NotifyCollectionChangedAction.Remove)
                     {
-                        Assert.That(eventArgs.SelectMany(e => e.OldItems.Cast<OrderedObject>()).Select(o => o.Order), Is.EquivalentTo(change));
+                        Assert.That(arg.OldStartingIndex, Is.EqualTo(startIndex));
+                        Assert.That(arg.OldItems.Count, Is.EqualTo(change.Length));
                     }
                 }
             }
@@ -174,61 +335,17 @@ namespace IntegrationTests.Shared
 
         public IEnumerable<TestCaseData> CollectionChangedTestCases()
         {
-            var cases = new object[][] 
-            {
-                new object[] { new int[] { }, NotifyCollectionChangedAction.Add, new int[] { 1 } },
-                new object[] { new int[] { }, NotifyCollectionChangedAction.Add, new int[] { 1, 2, 3 } },
-                new object[] { new int[] { 1, 2, 3 }, NotifyCollectionChangedAction.Remove, new int[] { 1, 2, 3 } },
-                new object[] { new int[] { 1, 2, 3 }, NotifyCollectionChangedAction.Remove, new int[] { 2 } },
-                new object[] { new int[] { 1, 2, 3 }, NotifyCollectionChangedAction.Remove, new int[] { 1 } },
-                new object[] { new int[] { 1, 2, 3 }, NotifyCollectionChangedAction.Add, new int[] { 0 } },
-                new object[] { new int[] { 1, 2, 3 }, NotifyCollectionChangedAction.Add, new int[] { 4 } },
-                new object[] { new int[] { 1, 2, 3 }, NotifyCollectionChangedAction.Add, new int[] { 4, 5 } },
-                new object[] { new int[] { 1, 2, 3, 4, 5 }, NotifyCollectionChangedAction.Remove, new int[] { 3, 4 } },
-                new object[] { new int[] { 1, 3, 5 }, NotifyCollectionChangedAction.Add, new int[] { 2, 4 } },
-                new object[] { new int[] { 1, 2, 3, 4, 5 }, NotifyCollectionChangedAction.Remove, new int[] { 2, 4 } }
-            };
-
-            foreach (var testCase in cases)
-            {
-                yield return new TestCaseData(args: testCase.Concat(new object[] { true }).ToArray());
-                yield return new TestCaseData(args: testCase.Concat(new object[] { false }).ToArray());
-            }
-        }
-
-        [Test]
-        public void CollectionChangedAdapter_DeletingItemFromRealm_ShouldRaiseReset()
-        {
-            OrderedObject obj = null;
-            _realm.Write(() =>
-            {
-                for (var i = 0; i < 3; i++)
-                {
-                    obj = _realm.CreateObject<OrderedObject>();
-                    obj.Order = i;
-                }
-            });
-            var query = _realm.All<OrderedObject>();
-            Exception error = null;
-            var events = new List<NotifyCollectionChangedAction>();
-
-            var observable = query.ToNotifyCollectionChanged(e => error = e);
-            var handle = GCHandle.Alloc(observable); // prevent this from being collected across event loops
-            observable.CollectionChanged += (o, e) => events.Add(e.Action);
-
-            try
-            {
-                _realm.Write(() => _realm.Remove(obj));
-                TestHelpers.RunEventLoop(TimeSpan.FromMilliseconds(100));
-
-                Assert.That(error, Is.Null);
-                Assert.That(observable, Is.EquivalentTo(query));
-                Assert.That(events, Is.EquivalentTo(new[] { NotifyCollectionChangedAction.Reset }));
-            }
-            finally
-            {
-                handle.Free();
-            }
+            yield return new TestCaseData(new int[] { }, NotifyCollectionChangedAction.Add, new int[] { 1 },  0);
+            yield return new TestCaseData(new int[] { }, NotifyCollectionChangedAction.Add, new int[] { 1, 2, 3 }, 0);
+            yield return new TestCaseData(new int[] { 1, 2, 3 }, NotifyCollectionChangedAction.Remove, new int[] { 1, 2, 3 }, 0);
+            yield return new TestCaseData(new int[] { 1, 2, 3 }, NotifyCollectionChangedAction.Remove, new int[] { 2 }, 1);
+            yield return new TestCaseData(new int[] { 1, 2, 3 }, NotifyCollectionChangedAction.Remove, new int[] { 1 }, 0);
+            yield return new TestCaseData(new int[] { 1, 2, 3 }, NotifyCollectionChangedAction.Add, new int[] { 0 }, 0);
+            yield return new TestCaseData(new int[] { 1, 2, 3 }, NotifyCollectionChangedAction.Add, new int[] { 4 }, 3);
+            yield return new TestCaseData(new int[] { 1, 2, 3 }, NotifyCollectionChangedAction.Add, new int[] { 4, 5 }, 3);
+            yield return new TestCaseData(new int[] { 1, 2, 3, 4, 5 }, NotifyCollectionChangedAction.Remove, new int[] { 3, 4 }, 2);
+            yield return new TestCaseData(new int[] { 1, 3, 5 }, NotifyCollectionChangedAction.Add, new int[] { 2, 4 }, -1);
+            yield return new TestCaseData(new int[] { 1, 2, 3, 4, 5 }, NotifyCollectionChangedAction.Remove, new int[] { 2, 4 }, -1);
         }
     }
 }

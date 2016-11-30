@@ -17,24 +17,28 @@
 ////////////////////////////////////////////////////////////////////////////
 
 using System;
-using System.Runtime.InteropServices;
+using System.Net;
 
-namespace Realms
+namespace Realms.Sync
 {
-    internal static class RealmResultsNativeHelper
+    public class HttpException : Exception
     {
-        internal interface Interface
+        public HttpStatusCode StatusCode { get; }
+
+        public string ReasonPhrase { get; }
+
+        public string Payload { get; }
+
+        internal HttpException(HttpStatusCode code, string reasonPhrase, string payload) :
+            this(code, reasonPhrase, payload, "An HTTP exception has occurred.")
         {
-            void NotifyCallbacks(ResultsHandle.CollectionChangeSet? changes, NativeException? exception);
         }
 
-#if __IOS__
-        [ObjCRuntime.MonoPInvokeCallback(typeof(ResultsHandle.NotificationCallbackDelegate))]
-#endif
-        internal static void NotificationCallback(IntPtr managedResultsHandle, IntPtr changes, IntPtr exception)
+        internal HttpException(HttpStatusCode statusCode, string reasonPhrase, string payload, string message) : base(message)
         {
-            var results = (Interface)GCHandle.FromIntPtr(managedResultsHandle).Target;
-            results.NotifyCallbacks(new PtrTo<ResultsHandle.CollectionChangeSet>(changes).Value, new PtrTo<NativeException>(exception).Value);
+            StatusCode = statusCode;
+            ReasonPhrase = reasonPhrase;
+            Payload = payload;
         }
     }
 }
