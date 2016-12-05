@@ -80,7 +80,7 @@ namespace DrawXShared
 
         #region Synchronised data
         private Realm _realm;
-        private RealmResults<DrawPath> _allPaths;  // we observe all and filter based on changes
+        private IQueryable<DrawPath> _allPaths;  // we observe all and filter based on changes
         #endregion
 
         #region GUI Callbacks
@@ -201,7 +201,7 @@ namespace DrawXShared
                 Debug.WriteLine("Extra Realm Update callback invoked");
             };
             #endif
-            _allPaths = _realm.All<DrawPath>() as RealmResults<DrawPath>;
+            _allPaths = _realm.All<DrawPath>() as IQueryable<DrawPath>;
             _allPaths.SubscribeForNotifications((sender, changes, error) =>
             {
                 // WARNING ChangeSet indices are only valid inside this callback
