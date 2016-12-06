@@ -91,7 +91,7 @@ namespace Realms
         /// </remarks>
         /// <param name="config">Optional configuration.</param>
         /// <returns><c>true</c> if successful, <c>false</c> if any file operation failed.</returns>
-        public static bool Compact(RealmConfiguration config = null)
+        public static bool Compact(RealmConfigurationBase config = null)
         {
             RealmPCLHelpers.ThrowProxyShouldNeverBeUsed();
             return false;
